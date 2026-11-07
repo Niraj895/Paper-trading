@@ -9,46 +9,51 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Download repository files
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Setup Java
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # 3. Setup Android SDK (corrected)
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools'
 
-      # 4. Install required Android SDK packages
       - name: Install SDK packages
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      # 5. Setup Gradle
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      # 6. Extract Android project ZIP
       - name: Extract project
         run: |
           unzip -q ProTrader_Android_Studio_Project.zip -d buildsrc
-          ls -la buildsrc
+          ls -la buildsrc/ProTrader_Android_Project
 
-      # 7. Build APK
+      # Fix Java target to match Kotlin JVM 17
+      - name: Fix Java JVM Target
+        run: |
+          cat > buildsrc/ProTrader_Android_Project/jvm17.init.gradle <<'EOF'
+          allprojects {
+              tasks.withType(org.gradle.api.tasks.compile.JavaCompile).configureEach {
+                  sourceCompatibility = '17'
+                  targetCompatibility = '17'
+              }
+          }
+          EOF
+
       - name: Build APK
         working-directory: buildsrc/ProTrader_Android_Project
-        run: gradle assembleDebug --no-daemon
+        run: |
+          gradle -I jvm17.init.gradle assembleDebug --no-daemon
 
-      # 8. Upload generated APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
